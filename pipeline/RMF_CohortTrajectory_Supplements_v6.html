@@ -1,0 +1,1356 @@
+<!DOCTYPE html>
+<!--
+  RMF COHORT TRAJECTORY DASHBOARD v6
+  ==================================
+  Supplements Top-Tier Cohort Performance Visualization
+  
+  v6 Changes:
+  - Dual cohort toggle: Broad (~10 co, $1M-$45M) vs Elite (smaller, $1M-$175M)
+  - Expense bundle conflict warnings
+  - Enhanced data across full range
+  
+  See: SKILL_RMF_Dashboard_v4.md for related tools
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Supplements Cohort Trajectory | Propeller RMF</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --teal: #1E4D5C;
+      --teal-light: #E8F0F2;
+      --gold: #C9A227;
+      --gold-light: #FFF8E1;
+      --green: #2E7D32;
+      --red: #C62828;
+      --amber: #F59E0B;
+    }
+    
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+      background: #f5f5f5;
+      color: #333;
+    }
+    
+    .dashboard {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    /* Header */
+    .header {
+      background: linear-gradient(135deg, var(--teal) 0%, #2a6a7d 100%);
+      color: white;
+      padding: 20px 32px;
+      border-radius: 12px 12px 0 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .header-left {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    
+    .header-left .framework-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      opacity: 0.85;
+      font-weight: 500;
+    }
+    
+    .header-left .framework-label sup {
+      font-size: 7px;
+      opacity: 0.7;
+    }
+    
+    .header-left h1 {
+      font-size: 26px;
+      font-weight: 700;
+      margin: 2px 0;
+    }
+    
+    .header-left .subtitle {
+      font-size: 14px;
+      opacity: 0.9;
+    }
+    
+    /* Cohort Toggle in Header */
+    .header-center {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+    
+    .header-center .toggle-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      opacity: 0.7;
+    }
+    
+    .cohort-toggle {
+      display: flex;
+      border-radius: 6px;
+      overflow: hidden;
+      border: 2px solid rgba(255,255,255,0.3);
+      background: rgba(0,0,0,0.15);
+    }
+    
+    .cohort-btn {
+      padding: 8px 16px;
+      border: none;
+      background: transparent;
+      color: rgba(255,255,255,0.7);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1px;
+    }
+    
+    .cohort-btn .cohort-range {
+      font-size: 9px;
+      opacity: 0.7;
+      font-weight: 400;
+    }
+    
+    .cohort-btn.active {
+      background: rgba(255,255,255,0.95);
+      color: var(--teal);
+    }
+    
+    .cohort-btn.active .cohort-range {
+      opacity: 0.6;
+    }
+    
+    .cohort-btn:hover:not(.active) {
+      background: rgba(255,255,255,0.1);
+      color: white;
+    }
+    
+    .header-right {
+      text-align: right;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    
+    .header-right .company-name {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    
+    .header-right .platform {
+      font-size: 11px;
+      opacity: 0.85;
+    }
+    
+    .header-right .date {
+      font-size: 11px;
+      opacity: 0.85;
+    }
+    
+    /* Main Content */
+    .main-content {
+      background: white;
+      border-radius: 0 0 12px 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    }
+    
+    /* Info Cards */
+    .info-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 14px;
+      padding: 20px 28px;
+      background: var(--teal-light);
+      border-bottom: 1px solid #ddd;
+    }
+    
+    .info-card {
+      background: white;
+      padding: 14px;
+      border-radius: 8px;
+      border-left: 4px solid var(--teal);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    
+    .info-card h4 {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--teal);
+      margin-bottom: 6px;
+    }
+    
+    .info-card .value {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--teal);
+    }
+    
+    .info-card .subtext {
+      font-size: 11px;
+      color: #666;
+      margin-top: 4px;
+    }
+    
+    /* Insight Box */
+    .insight-container {
+      margin: 20px 28px;
+    }
+    
+    .annotation-note {
+      background: var(--gold-light);
+      border: 1px solid var(--gold);
+      border-radius: 8px;
+      padding: 14px 20px;
+      font-size: 14px;
+      color: #665500;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    
+    .annotation-note .icon {
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+    
+    .annotation-note strong {
+      color: var(--gold);
+    }
+    
+    /* Bundle Warning */
+    .bundle-warning {
+      background: #FFF3E0;
+      border: 1px solid var(--amber);
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 13px;
+      color: #E65100;
+      display: none;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    
+    .bundle-warning.visible {
+      display: flex;
+    }
+    
+    .bundle-warning .warning-icon {
+      font-size: 18px;
+    }
+    
+    .bundle-warning button {
+      margin-left: auto;
+      padding: 6px 12px;
+      border: 1px solid var(--amber);
+      background: white;
+      color: #E65100;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    
+    .bundle-warning button:hover {
+      background: #FFF3E0;
+    }
+    
+    .insight-stats {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+    
+    .insight-stat {
+      background: white;
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .insight-stat .trend {
+      font-size: 18px;
+    }
+    
+    .insight-stat .stat-content {
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .insight-stat .stat-label {
+      font-size: 10px;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .insight-stat .stat-value {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--teal);
+    }
+    
+    .insight-stat .stat-value.positive { color: var(--green); }
+    .insight-stat .stat-value.negative { color: var(--red); }
+    
+    /* Chart Section */
+    .chart-section {
+      padding: 20px 28px 28px;
+    }
+    
+    .chart-container {
+      position: relative;
+      height: 480px;
+      background: #fafafa;
+      border-radius: 8px;
+      padding: 16px;
+      border: 1px solid #eee;
+    }
+    
+    /* Custom Legend */
+    .custom-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      justify-content: center;
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid #eee;
+    }
+    
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 500;
+    }
+    
+    .legend-color {
+      width: 24px;
+      height: 4px;
+      border-radius: 2px;
+    }
+    
+    /* Controls */
+    .controls {
+      padding: 24px 28px;
+      border-top: 1px solid #eee;
+      background: #fafafa;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 24px;
+      align-items: flex-start;
+    }
+    
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    
+    .control-group label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--teal);
+    }
+    
+    .control-group select {
+      padding: 10px 14px;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      font-size: 13px;
+      min-width: 240px;
+      background: white;
+      cursor: pointer;
+      transition: border-color 0.2s;
+    }
+    
+    .control-group select:focus {
+      outline: none;
+      border-color: var(--teal);
+    }
+    
+    .control-group select[multiple] {
+      min-height: 200px;
+    }
+    
+    .toggle-group {
+      display: flex;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 2px solid var(--teal);
+    }
+    
+    .toggle-btn {
+      padding: 10px 14px;
+      border: none;
+      background: white;
+      color: var(--teal);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    
+    .toggle-btn.active {
+      background: var(--teal);
+      color: white;
+    }
+    
+    .toggle-btn:hover:not(.active):not(:disabled) {
+      background: var(--teal-light);
+    }
+    
+    .toggle-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    
+    .toggle-warning {
+      font-size: 10px;
+      color: var(--amber);
+      margin-top: 4px;
+      font-style: italic;
+    }
+    
+    .toggle-info {
+      font-size: 10px;
+      color: #666;
+      margin-top: 4px;
+      font-style: italic;
+    }
+    
+    .smooth-toggle {
+      border-color: var(--gold);
+    }
+    
+    .smooth-toggle .toggle-btn {
+      color: var(--gold);
+    }
+    
+    .smooth-toggle .toggle-btn.active {
+      background: var(--gold);
+      color: white;
+    }
+    
+    .smooth-toggle .toggle-btn:hover:not(.active) {
+      background: var(--gold-light);
+    }
+    
+    /* Footer */
+    .footer {
+      padding: 16px 28px;
+      background: var(--teal-light);
+      text-align: center;
+      border-radius: 0 0 12px 12px;
+    }
+    
+    .footer .powered-by {
+      font-size: 11px;
+      font-style: italic;
+      color: var(--teal);
+    }
+    
+    .footer .company-count {
+      font-size: 10px;
+      color: #666;
+      margin-top: 4px;
+    }
+    
+    @media (max-width: 768px) {
+      .header { flex-direction: column; text-align: center; gap: 16px; }
+      .header-left { align-items: center; }
+      .header-center { width: 100%; }
+      .header-right { text-align: center; }
+      .controls { flex-direction: column; }
+      .control-group select { min-width: 100%; }
+      .info-cards { grid-template-columns: repeat(2, 1fr); }
+    }
+    
+    @media print {
+      body { background: white; }
+      .controls { display: none; }
+      .cohort-selector { display: none; }
+      .dashboard { padding: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="dashboard">
+    <!-- Header -->
+    <div class="header">
+      <div class="header-left">
+        <div class="framework-label">Revenue Milestone Framework<sup>TM</sup></div>
+        <h1>Cohort Trajectory: Supplements</h1>
+        <div class="subtitle" id="subtitleText">$1M – $45M Milestone Performance Analysis</div>
+      </div>
+      <div class="header-center">
+        <div class="toggle-label">Cohort</div>
+        <div class="cohort-toggle">
+          <button class="cohort-btn active" data-cohort="broad">
+            <span>Broad</span>
+            <span class="cohort-range">~10 co • $1M–$45M</span>
+          </button>
+          <button class="cohort-btn" data-cohort="elite">
+            <span>Elite</span>
+            <span class="cohort-range">Top performers • $1M–$175M</span>
+          </button>
+        </div>
+      </div>
+      <div class="header-right">
+        <div class="company-name">Propeller Industries</div>
+        <div class="platform">Financial Operating Platform</div>
+        <div class="date">December 15, 2025</div>
+      </div>
+    </div>
+    
+    <!-- Main Content -->
+    <div class="main-content">
+      
+      <!-- Info Cards -->
+      <div class="info-cards" id="infoCards">
+        <div class="info-card">
+          <h4>Cohort Size</h4>
+          <div class="value" id="cardCohortSize">~10</div>
+          <div class="subtext">Top-tier companies</div>
+        </div>
+        <div class="info-card">
+          <h4>Milestone Range</h4>
+          <div class="value" id="cardRange">$1M–$45M</div>
+          <div class="subtext" id="cardRangeSubtext">17 data points</div>
+        </div>
+        <div class="info-card">
+          <h4>Time to Max</h4>
+          <div class="value" id="cardTime">37 mo</div>
+          <div class="subtext">Avg. from first GL</div>
+        </div>
+        <div class="info-card">
+          <h4>Breakeven</h4>
+          <div class="value" id="cardBreakeven">~$20M</div>
+          <div class="subtext">EBITDA positive</div>
+        </div>
+        <div class="info-card">
+          <h4>Peak GM%</h4>
+          <div class="value" id="cardGM">71.5%</div>
+          <div class="subtext" id="cardGMSubtext">At $45M milestone</div>
+        </div>
+        <div class="info-card">
+          <h4>Peak MER</h4>
+          <div class="value" id="cardMER">2.35x</div>
+          <div class="subtext" id="cardMERSubtext">At $40M milestone</div>
+        </div>
+      </div>
+      
+      <!-- Insight Box -->
+      <div class="insight-container">
+        <div class="annotation-note" id="annotation">
+          <span class="icon">📊</span>
+          <div id="annotationText">
+            <strong>Insight:</strong> This cohort turns EBITDA-positive around the <strong>$20M milestone</strong>.
+          </div>
+        </div>
+        
+        <!-- Bundle Warning -->
+        <div class="bundle-warning" id="bundleWarning">
+          <span class="warning-icon">⚠️</span>
+          <span id="bundleWarningText">You've selected metrics from both expense bundles.</span>
+          <button id="bundleFixBtn">Switch Bundle</button>
+        </div>
+        
+        <div class="insight-stats" id="insightStats"></div>
+      </div>
+      
+      <!-- Chart -->
+      <div class="chart-section">
+        <div class="chart-container">
+          <canvas id="trajectoryChart"></canvas>
+        </div>
+        <div class="custom-legend" id="customLegend"></div>
+      </div>
+      
+      <!-- Controls -->
+      <div class="controls">
+        <div class="control-group">
+          <label>Select Metrics (Ctrl+Click for multiple)</label>
+          <select id="metricSelect" multiple>
+            <optgroup label="Revenue & Profitability">
+              <option value="netRevenue" selected>Net Revenue</option>
+              <option value="grossRevenue">Gross Revenue</option>
+              <option value="grossProfit">Gross Profit</option>
+              <option value="ebitda">EBITDA</option>
+              <option value="netIncome">Net Income</option>
+            </optgroup>
+            <optgroup label="Contra-Revenue">
+              <option value="deductionsToIncome">Total Deductions</option>
+              <option value="discountsReturns">Discounts & Returns</option>
+              <option value="tradeDeductions">Trade Deductions</option>
+              <option value="slotting">Slotting Fees</option>
+            </optgroup>
+            <optgroup label="Expenses (Traditional)">
+              <option value="cogs">COGS</option>
+              <option value="totalExpenses">Total Expenses</option>
+              <option value="ga">G&A</option>
+              <option value="sm">Sales & Marketing</option>
+              <option value="operations">Operations</option>
+            </optgroup>
+            <optgroup label="Expenses (Priority View)">
+              <option value="expenseCAC">Customer Acquisition</option>
+              <option value="expensePayroll">Payroll</option>
+              <option value="expenseOther">All Other Expenses</option>
+            </optgroup>
+            <optgroup label="Marketing Efficiency">
+              <option value="mer">MER (Rev ÷ S&M)</option>
+              <option value="amer">aMER (Rev ÷ CAC)</option>
+              <option value="pmer">pMER (MER × GM%)</option>
+            </optgroup>
+            <optgroup label="Capital">
+              <option value="capitalEfficiency">Capital Efficiency</option>
+            </optgroup>
+          </select>
+        </div>
+        
+        <div class="control-group">
+          <label>X-Axis</label>
+          <div class="toggle-group">
+            <button class="toggle-btn active" data-axis="milestone">Revenue Milestone</button>
+            <button class="toggle-btn" data-axis="time">Months Since Start</button>
+          </div>
+        </div>
+        
+        <div class="control-group">
+          <label>Y-Axis Scale</label>
+          <div class="toggle-group">
+            <button class="toggle-btn active" data-scale="linear">Linear</button>
+            <button class="toggle-btn" data-scale="log" id="logScaleBtn">Logarithmic</button>
+          </div>
+          <div class="toggle-warning" id="logWarning" style="display: none;">
+            ⚠️ Log scale unavailable with negative values
+          </div>
+        </div>
+        
+        <div class="control-group">
+          <label>Display Mode</label>
+          <div class="toggle-group">
+            <button class="toggle-btn active" data-mode="dollars">$ (000s)</button>
+            <button class="toggle-btn" data-mode="percent">% of Revenue</button>
+          </div>
+        </div>
+        
+        <div class="control-group">
+          <label>Data Smoothing</label>
+          <div class="toggle-group smooth-toggle">
+            <button class="toggle-btn active" data-smooth="raw">Raw</button>
+            <button class="toggle-btn" data-smooth="fade">Fade Outliers</button>
+            <button class="toggle-btn" data-smooth="average">3-Period Avg</button>
+          </div>
+          <div class="toggle-info" id="smoothInfo"></div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Footer -->
+    <div class="footer">
+      <div class="powered-by">Powered by the Propeller Intelligence Engine (PIE) and Revenue Milestone Framework (RMF)</div>
+      <div class="company-count" id="footerText">Cohort filtered for 3+ companies per milestone | Top-tier performers</div>
+    </div>
+  </div>
+
+  <script>
+    // ============================================================================
+    // COHORT DATA
+    // ============================================================================
+    
+    // BROAD COHORT: ~10 companies, $1M-$45M (original, cleaned)
+    const COHORT_BROAD = {
+      name: 'Broad',
+      description: '~10 top-tier companies',
+      range: '$1M–$45M',
+      milestones: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 25, 30, 35, 40, 45],
+      milestoneLabels: ['$1M', '$2M', '$3M', '$4M', '$5M', '$6M', '$7M', '$8M', '$9M', '$10M', '$15M', '$20M', '$25M', '$30M', '$35M', '$40M', '$45M'],
+      periodStart: [16.9, 19.1, 20.7, 21.9, 22.7, 23.4, 24.1, 26.9, 25.7, 26.1, 29.9, 31.6, 33.0, 34.0, 32.2, 36.0, 37.2],
+      outlierIndices: [8, 14],
+      
+      netRevenue: {
+        dollars: [1146, 2364, 3217, 4309, 5127, 6338, 7257, 8190, 9132, 10999, 15903, 21908, 25994, 32430, 37112, 41523, 45193],
+        percent: [100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100]
+      },
+      grossRevenue: {
+        dollars: [1196, 2478, 3385, 4557, 5429, 6734, 7726, 8828, 9849, 11827, 17057, 23248, 27675, 34996, 40034, 45502, 49189],
+        percent: [104.3, 104.8, 105.1, 105.8, 105.9, 106.2, 106.4, 107.9, 107.8, 107.4, 107.3, 106.4, 106.5, 107.6, 107.9, 109.6, 108.8]
+      },
+      grossProfit: {
+        dollars: [632, 1459, 2069, 2791, 3302, 3923, 4755, 5344, 5864, 7202, 10610, 14764, 17407, 22068, 25192, 29342, 32327],
+        percent: [55.1, 61.7, 64.3, 64.8, 64.4, 61.9, 65.5, 65.3, 64.2, 65.5, 66.7, 67.4, 67.0, 68.0, 67.9, 70.7, 71.5]
+      },
+      ebitda: {
+        dollars: [-1324, -1454, -1450, -2229, -1783, -2607, -1991, -1929, -1171, -1066, -768, 56, 38, 157, 1004, 1847, 2122],
+        percent: [-115.5, -61.5, -45.1, -51.7, -34.8, -41.1, -27.4, -23.6, -12.8, -9.7, -4.8, 0.3, 0.1, 0.5, 2.7, 4.4, 4.7]
+      },
+      netIncome: {
+        dollars: [-1329, -1460, -1467, -2893, -1800, -3376, -2010, -2591, -1809, -1828, -818, -292, 5, 104, 362, 1303, 1577],
+        percent: [-116.0, -61.8, -45.6, -67.1, -35.1, -53.3, -27.7, -31.6, -19.8, -16.6, -5.1, -1.3, 0.0, 0.3, 1.0, 3.1, 3.5]
+      },
+      deductionsToIncome: {
+        dollars: [-83, -196, -279, -395, -486, -628, -791, -1005, -1131, -1337, -2219, -2957, -3383, -4719, -5727, -3979, -3996],
+        percent: [-7.5, -8.1, -8.8, -9.4, -9.6, -9.9, -11.0, -12.5, -12.4, -12.0, -13.2, -12.9, -12.7, -14.3, -15.3, -9.6, -8.8]
+      },
+      discountsReturns: {
+        dollars: [-82, -192, -271, -387, -473, -616, -780, -994, -1118, -1321, -2204, -2936, -3365, -4697, -5697, -3912, -3852],
+        percent: [-7.5, -7.9, -8.6, -9.2, -9.3, -9.7, -10.9, -12.3, -12.2, -11.8, -13.1, -12.8, -12.7, -14.2, -15.2, -9.5, -8.5]
+      },
+      tradeDeductions: {
+        dollars: [-1, -4, -8, -8, -13, -12, -11, -13, -14, -16, -15, -21, -18, -22, -29, -53, -90],
+        percent: [-0.1, -0.2, -0.2, -0.2, -0.2, -0.2, -0.2, -0.2, -0.2, -0.2, -0.1, -0.1, -0.1, -0.1, -0.1, -0.1, -0.2]
+      },
+      slotting: {
+        dollars: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -14, -54],
+        percent: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -0.04, -0.12]
+      },
+      cogs: {
+        dollars: [514, 905, 1148, 1517, 1825, 2415, 2503, 2846, 3268, 3797, 5293, 7144, 8587, 10362, 11921, 12181, 12866],
+        percent: [44.9, 38.3, 35.7, 35.2, 35.6, 38.1, 34.5, 34.7, 35.8, 34.5, 33.3, 32.6, 33.0, 32.0, 32.1, 29.3, 28.5]
+      },
+      totalExpenses: {
+        dollars: [1957, 2913, 3519, 5021, 5085, 6529, 6746, 7272, 7035, 8268, 11376, 14708, 17365, 21911, 24182, 27495, 30205],
+        percent: [170.8, 123.2, 109.4, 116.5, 99.2, 103.0, 93.0, 88.8, 77.0, 75.2, 71.5, 67.1, 66.8, 67.6, 65.2, 66.2, 66.8]
+      },
+      ga: {
+        dollars: [622, 796, 923, 1453, 1287, 1744, 1655, 2169, 1821, 2090, 2520, 3271, 3893, 4454, 4896, 6045, 6424],
+        percent: [54.3, 33.7, 28.7, 33.7, 25.1, 27.5, 22.8, 26.5, 19.9, 19.0, 15.8, 14.9, 15.0, 13.7, 13.2, 14.6, 14.2]
+      },
+      sm: {
+        dollars: [1260, 1955, 2402, 3307, 3432, 4328, 4551, 4474, 4578, 5403, 7824, 9981, 11441, 14853, 16423, 17677, 19553],
+        percent: [109.9, 82.7, 74.7, 76.8, 66.9, 68.3, 62.7, 54.6, 50.1, 49.1, 49.2, 45.6, 44.0, 45.8, 44.3, 42.6, 43.3]
+      },
+      operations: {
+        dollars: [75, 162, 194, 261, 366, 457, 540, 632, 637, 775, 1034, 1457, 2035, 2604, 2870, 3773, 4218],
+        percent: [6.5, 6.9, 6.0, 6.1, 7.1, 7.2, 7.4, 7.7, 7.0, 7.0, 6.5, 6.6, 7.8, 8.0, 7.7, 9.1, 9.3]
+      },
+      expensePayroll: {
+        dollars: [247, 289, 403, 742, 585, 849, 879, 1207, 881, 975, 1124, 1612, 1748, 2045, 1738, 2284, 2483],
+        percent: [21.4, 12.4, 11.9, 17.1, 11.1, 13.0, 11.9, 14.4, 9.7, 9.1, 7.3, 7.4, 6.8, 6.4, 4.8, 5.5, 5.5]
+      },
+      expenseCAC: {
+        dollars: [512, 1135, 1262, 1826, 1831, 2299, 2489, 2844, 2850, 3446, 4726, 6043, 7454, 9830, 10442, 14023, 16196],
+        percent: [46.7, 45.9, 39.7, 41.5, 35.9, 36.8, 34.2, 34.5, 31.5, 31.1, 30.5, 27.7, 28.7, 29.9, 28.7, 34.6, 35.8]
+      },
+      expenseOther: {
+        dollars: [1198, 1489, 1854, 2454, 2670, 3381, 3378, 3223, 3303, 3847, 5525, 7053, 8159, 10036, 12002, 11180, 11526],
+        percent: [94.3, 65.3, 60.4, 59.5, 53.0, 53.3, 46.7, 39.6, 36.2, 34.7, 33.5, 31.4, 31.0, 30.6, 32.0, 26.9, 25.5]
+      },
+      mer: { values: [0.91, 1.21, 1.34, 1.30, 1.49, 1.46, 1.59, 1.83, 1.99, 2.04, 2.03, 2.19, 2.27, 2.18, 2.26, 2.35, 2.31] },
+      amer: { values: [2.24, 2.08, 2.55, 2.36, 2.80, 2.76, 2.92, 2.88, 3.20, 3.19, 3.37, 3.63, 3.49, 3.30, 3.55, 2.96, 2.79] },
+      pmer: { values: [0.50, 0.75, 0.86, 0.84, 0.96, 0.91, 1.04, 1.19, 1.28, 1.33, 1.36, 1.48, 1.52, 1.49, 1.53, 1.66, 1.65] },
+      capitalEfficiency: { 
+        dollars: [5.9, 6.6, 45.1, 23.6, 15.6, 11.6, 12.8, 8.1, 7.3, 6.8, 10.9, 12.6, 27.0, 36.3, 67.1, 351.3, 392.4],
+        percent: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      }
+    };
+    
+    // ELITE COHORT: Smaller group, $1M-$175M (extreme performers)
+    const COHORT_ELITE = {
+      name: 'Elite',
+      description: 'Top performers',
+      range: '$1M–$175M',
+      milestones: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 25, 30, 35, 40, 45, 50, 60, 70, 80, 90, 100, 125, 150, 175],
+      milestoneLabels: ['$1M', '$2M', '$3M', '$4M', '$5M', '$6M', '$7M', '$8M', '$9M', '$10M', '$15M', '$20M', '$25M', '$30M', '$35M', '$40M', '$45M', '$50M', '$60M', '$70M', '$80M', '$90M', '$100M', '$125M', '$150M', '$175M'],
+      periodStart: [13.2, 14.4, 15.2, 16.0, 16.4, 17.0, 17.2, 18.6, 18.6, 18.8, 20.2, 21.4, 22.8, 23.2, 24.2, 26.0, 26.5, 27.3, 28.0, 29.5, 30.0, 30.8, 30.5, 34.5, 38.5, 39.5],
+      outlierIndices: [22], // Only the $100M slight dip
+      
+      netRevenue: {
+        dollars: [1146, 2413, 3210, 4221, 5118, 6388, 7265, 8000, 9106, 11130, 16042, 21702, 26140, 33210, 37492, 41451, 45076, 54338, 63583, 71498, 83502, 93981, 106367, 132597, 154450, 184514],
+        percent: [100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100]
+      },
+      grossRevenue: {
+        dollars: [1196, 2526, 3380, 4480, 5446, 6798, 7748, 8548, 9736, 11942, 17262, 23238, 27866, 35536, 40108, 45288, 49254, 59444, 69392, 78060, 91478, 103014, 116666, 147494, 173094, 209194],
+        percent: [104.4, 104.7, 105.3, 106.1, 106.4, 106.4, 106.6, 106.9, 106.9, 107.3, 107.6, 107.1, 106.6, 107.0, 107.0, 109.3, 109.3, 109.4, 109.1, 109.2, 109.6, 109.6, 109.7, 111.2, 112.1, 113.4]
+      },
+      grossProfit: {
+        dollars: [631, 1594, 2116, 2740, 3345, 3955, 4769, 5021, 5716, 7066, 10399, 14086, 16732, 21676, 24343, 27980, 30615, 37044, 43988, 49722, 58627, 66006, 74495, 98459, 115656, 138476],
+        percent: [55.1, 66.1, 65.9, 64.9, 65.3, 61.9, 65.7, 62.8, 62.8, 63.5, 64.8, 64.9, 64.0, 65.2, 64.9, 67.5, 67.9, 68.2, 69.2, 69.5, 70.2, 70.3, 70.0, 74.3, 74.9, 75.1]
+      },
+      ebitda: {
+        dollars: [-1792, -1815, -1800, -3021, -2326, -3521, -2482, -1515, -1713, -1778, -69, 1093, 408, 271, 484, 1427, 1744, 3136, 7999, 10011, 13655, 12496, 11780, 11274, 11924, 24582],
+        percent: [-156.4, -75.2, -56.1, -71.6, -45.4, -55.1, -34.2, -18.9, -18.8, -16.0, -0.4, 5.0, 1.6, 0.8, 1.3, 3.4, 3.9, 5.8, 12.6, 14.0, 16.4, 13.3, 11.1, 8.5, 7.7, 13.3]
+      },
+      netIncome: {
+        dollars: [-1800, -1827, -1820, -3720, -2352, -4446, -2519, -2199, -2303, -2567, -331, 674, 263, -81, 92, 888, 1186, 2225, 6499, 8076, 11056, 10140, 9410, 6769, 4621, 16073],
+        percent: [-157.1, -75.7, -56.7, -88.1, -46.0, -69.6, -34.7, -27.5, -25.3, -23.1, -2.1, 3.1, 1.0, -0.2, 0.2, 2.1, 2.6, 4.1, 10.2, 11.3, 13.2, 10.8, 8.8, 5.1, 3.0, 8.7]
+      },
+      deductionsToIncome: {
+        dollars: [-83, -200, -279, -400, -493, -637, -803, -920, -1105, -1341, -2032, -2767, -3361, -4571, -5419, -3838, -4178, -5106, -5808, -6562, -7976, -9034, -10299, -14897, -18644, -24679],
+        percent: [-7.2, -8.3, -8.7, -9.5, -9.6, -10.0, -11.1, -11.5, -12.1, -12.1, -12.7, -12.7, -12.9, -13.8, -14.5, -9.3, -9.3, -9.4, -9.1, -9.2, -9.6, -9.6, -9.7, -11.2, -12.1, -13.4]
+      },
+      discountsReturns: {
+        dollars: [-82, -196, -271, -392, -480, -625, -793, -909, -1092, -1325, -2017, -2746, -3343, -4549, -5389, -3771, -4034, -4883, -5585, -6339, -7753, -8811, -10076, -14747, -18494, -24529],
+        percent: [-7.2, -8.1, -8.4, -9.3, -9.4, -9.8, -10.9, -11.4, -12.0, -11.9, -12.6, -12.7, -12.8, -13.7, -14.4, -9.1, -9.0, -9.0, -8.8, -8.9, -9.3, -9.4, -9.5, -11.1, -12.0, -13.3]
+      },
+      tradeDeductions: {
+        dollars: [-1, -4, -8, -8, -13, -12, -10, -13, -14, -16, -15, -21, -18, -22, -29, -53, -90, -142, -142, -142, -142, -142, -142, -151, -151, -151],
+        percent: [-0.1, -0.2, -0.2, -0.2, -0.3, -0.2, -0.1, -0.2, -0.2, -0.1, -0.1, -0.1, -0.1, -0.1, -0.1, -0.1, -0.2, -0.3, -0.2, -0.2, -0.2, -0.2, -0.1, -0.1, -0.1, -0.1]
+      },
+      slotting: {
+        dollars: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -14, -54, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        percent: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -0.03, -0.1, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      cogs: {
+        dollars: [514, 819, 1094, 1481, 1773, 2433, 2496, 2979, 3390, 4064, 5643, 7616, 9408, 11534, 13149, 13471, 14461, 17294, 19596, 21776, 24875, 27975, 31871, 34138, 38794, 46038],
+        percent: [44.9, 33.9, 34.1, 35.1, 34.6, 38.1, 34.4, 37.2, 37.2, 36.5, 35.2, 35.1, 36.0, 34.7, 35.1, 32.5, 32.1, 31.8, 30.8, 30.5, 29.8, 29.8, 30.0, 25.7, 25.1, 25.0]
+      },
+      totalExpenses: {
+        dollars: [2423, 3409, 3916, 5761, 5671, 7476, 7251, 6536, 7429, 8844, 10467, 12993, 16320, 21405, 23853, 26553, 28871, 33908, 35989, 39711, 44973, 53510, 62715, 87185, 103732, 113894],
+        percent: [211.4, 141.3, 122.0, 136.5, 110.8, 117.0, 99.8, 81.7, 81.6, 79.5, 65.2, 59.9, 62.4, 64.5, 63.6, 64.1, 64.1, 62.4, 56.6, 55.5, 53.9, 56.9, 59.0, 65.8, 67.2, 61.7]
+      },
+      ga: {
+        dollars: [751, 890, 1012, 1791, 1431, 2025, 1780, 1779, 1958, 2268, 2338, 2958, 4046, 5331, 6079, 6320, 6609, 8403, 8903, 10137, 11380, 14188, 17766, 31068, 40074, 41320],
+        percent: [65.5, 36.9, 31.5, 42.4, 28.0, 31.7, 24.5, 22.2, 21.5, 20.4, 14.6, 13.6, 15.5, 16.1, 16.2, 15.2, 14.7, 15.5, 14.0, 14.2, 13.6, 15.1, 16.7, 23.4, 26.0, 22.4]
+      },
+      sm: {
+        dollars: [1559, 2341, 2718, 3870, 3962, 5065, 5148, 4369, 4948, 5907, 7270, 8826, 10792, 14743, 16519, 16997, 18773, 22050, 23059, 25720, 28802, 32076, 38947, 57191, 74285, 77169],
+        percent: [136.0, 97.0, 84.7, 91.7, 77.4, 79.3, 70.9, 54.6, 54.3, 53.1, 45.3, 40.7, 41.3, 44.4, 44.1, 41.0, 41.7, 40.6, 36.3, 36.0, 34.5, 34.1, 36.6, 43.1, 48.1, 41.8]
+      },
+      operations: {
+        dollars: [113, 178, 186, 100, 278, 386, 323, 388, 523, 669, 859, 1209, 1482, 1331, 1255, 3236, 3489, 3455, 4027, 3854, 4791, 7246, 6002, -1074, -10627, -4595],
+        percent: [9.9, 7.4, 5.8, 2.4, 5.4, 6.0, 4.4, 4.9, 5.7, 6.0, 5.4, 5.6, 5.7, 4.0, 3.3, 7.8, 7.7, 6.4, 6.3, 5.4, 5.7, 7.7, 5.6, -0.8, -6.9, -2.5]
+      },
+      expensePayroll: {
+        dollars: [304, 302, 387, 871, 586, 924, 882, 985, 942, 1060, 1038, 1437, 1702, 2011, 1639, 2255, 2430, 2958, 4169, 4930, 6045, 7098, 7875, 7930, 8182, 14310],
+        percent: [26.5, 12.5, 12.1, 20.6, 11.5, 14.5, 12.1, 12.3, 10.3, 9.5, 6.5, 6.6, 6.5, 6.1, 4.4, 5.4, 5.4, 5.4, 6.6, 6.9, 7.2, 7.6, 7.4, 6.0, 5.3, 7.8]
+      },
+      expenseCAC: {
+        dollars: [610, 1363, 1426, 2100, 2006, 2566, 2625, 2505, 2978, 3633, 4440, 5536, 6878, 9574, 10262, 11648, 13212, 16568, 17210, 18614, 20765, 23254, 27652, 44612, 59222, 59768],
+        percent: [53.2, 56.5, 44.4, 49.8, 39.2, 40.2, 36.1, 31.3, 32.7, 32.6, 27.7, 25.5, 26.3, 28.8, 27.4, 28.1, 29.3, 30.5, 27.1, 26.0, 24.9, 24.7, 26.0, 33.6, 38.4, 32.4]
+      },
+      expenseOther: {
+        dollars: [1509, 1744, 2103, 2791, 3079, 3986, 3744, 3047, 3508, 4151, 4989, 6020, 7740, 9819, 11951, 12651, 13229, 14382, 14609, 16168, 18164, 23157, 27188, 34644, 36328, 39816],
+        percent: [131.7, 72.3, 65.5, 66.1, 60.2, 62.4, 51.5, 38.1, 38.5, 37.3, 31.1, 27.7, 29.6, 29.6, 31.9, 30.5, 29.4, 26.5, 23.0, 22.6, 21.8, 24.6, 25.6, 26.1, 23.5, 21.6]
+      },
+      mer: { values: [0.74, 1.03, 1.18, 1.09, 1.29, 1.26, 1.41, 1.83, 1.84, 1.88, 2.21, 2.46, 2.42, 2.25, 2.27, 2.44, 2.40, 2.46, 2.76, 2.78, 2.90, 2.93, 2.73, 2.32, 2.08, 2.39] },
+      amer: { values: [1.88, 1.77, 2.25, 2.01, 2.55, 2.49, 2.77, 3.19, 3.06, 3.06, 3.61, 3.92, 3.80, 3.47, 3.65, 3.56, 3.41, 3.28, 3.69, 3.84, 4.02, 4.04, 3.85, 2.97, 2.61, 3.09] },
+      pmer: { values: [0.41, 0.68, 0.78, 0.71, 0.84, 0.78, 0.93, 1.15, 1.16, 1.20, 1.43, 1.60, 1.55, 1.47, 1.47, 1.65, 1.63, 1.68, 1.91, 1.93, 2.04, 2.06, 1.91, 1.72, 1.56, 1.79] },
+      capitalEfficiency: { 
+        dollars: [4.5, 6.4, 17.1, 8.2, 7.2, 6.6, 7.9, 6.4, 6.0, 5.8, 9.3, 10.9, 15.7, 18.7, 22.4, 35.9, 38.8, 43.5, 57.6, 64.7, 83.5, 94.0, 106.4, 88.4, 89.3, 107.0],
+        percent: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      }
+    };
+    
+    const METRIC_CONFIG = {
+      netRevenue: { label: 'Net Revenue', color: '#1E4D5C', isRatio: false, bundle: null },
+      grossRevenue: { label: 'Gross Revenue', color: '#2d7a8f', isRatio: false, bundle: null },
+      grossProfit: { label: 'Gross Profit', color: '#2E7D32', isRatio: false, bundle: null },
+      ebitda: { label: 'EBITDA', color: '#C9A227', isRatio: false, bundle: null },
+      netIncome: { label: 'Net Income', color: '#7B1FA2', isRatio: false, bundle: null },
+      deductionsToIncome: { label: 'Total Deductions', color: '#B71C1C', isRatio: false, bundle: null },
+      discountsReturns: { label: 'Discounts & Returns', color: '#C62828', isRatio: false, bundle: null },
+      tradeDeductions: { label: 'Trade Deductions', color: '#D32F2F', isRatio: false, bundle: null },
+      slotting: { label: 'Slotting Fees', color: '#E53935', isRatio: false, bundle: null },
+      cogs: { label: 'COGS', color: '#E65100', isRatio: false, bundle: null },
+      totalExpenses: { label: 'Total Expenses', color: '#EF6C00', isRatio: false, bundle: null },
+      ga: { label: 'G&A', color: '#00838F', isRatio: false, bundle: 'traditional' },
+      sm: { label: 'Sales & Marketing', color: '#AD1457', isRatio: false, bundle: 'traditional' },
+      operations: { label: 'Operations', color: '#6A1B9A', isRatio: false, bundle: 'traditional' },
+      expensePayroll: { label: 'Payroll', color: '#00695C', isRatio: false, bundle: 'priority' },
+      expenseCAC: { label: 'Customer Acquisition', color: '#0277BD', isRatio: false, bundle: 'priority' },
+      expenseOther: { label: 'All Other Expenses', color: '#455A64', isRatio: false, bundle: 'priority' },
+      mer: { label: 'MER (Rev÷S&M)', color: '#1565C0', isRatio: true, bundle: null },
+      amer: { label: 'aMER (Rev÷CAC)', color: '#00695C', isRatio: true, bundle: null },
+      pmer: { label: 'pMER (MER×GM%)', color: '#F9A825', isRatio: true, bundle: null },
+      capitalEfficiency: { label: 'Capital Efficiency', color: '#5D4037', isRatio: true, bundle: null }
+    };
+    
+    const BUNDLE_TRADITIONAL = ['ga', 'sm', 'operations'];
+    const BUNDLE_PRIORITY = ['expensePayroll', 'expenseCAC', 'expenseOther'];
+
+    // ============================================================================
+    // STATE
+    // ============================================================================
+    let state = {
+      cohort: 'broad',
+      selectedMetrics: ['netRevenue'],
+      xAxis: 'milestone',
+      yScale: 'linear',
+      displayMode: 'dollars',
+      smoothMode: 'raw'
+    };
+    
+    let chart = null;
+
+    // ============================================================================
+    // HELPERS
+    // ============================================================================
+    function getCurrentCohort() {
+      return state.cohort === 'broad' ? COHORT_BROAD : COHORT_ELITE;
+    }
+    
+    function getRawDataForMetric(metricKey) {
+      const cohort = getCurrentCohort();
+      const metric = cohort[metricKey];
+      const config = METRIC_CONFIG[metricKey];
+      
+      if (!metric) return [];
+      
+      if (config.isRatio) {
+        return [...(metric.values || metric.dollars)];
+      } else if (state.displayMode === 'percent') {
+        return [...metric.percent];
+      } else {
+        return [...metric.dollars];
+      }
+    }
+    
+    function get3PeriodAverage(data) {
+      const smoothed = [];
+      for (let i = 0; i < data.length; i++) {
+        if (i === 0) {
+          smoothed.push((data[0] + data[1]) / 2);
+        } else if (i === data.length - 1) {
+          smoothed.push((data[i-1] + data[i]) / 2);
+        } else {
+          smoothed.push((data[i-1] + data[i] + data[i+1]) / 3);
+        }
+      }
+      return smoothed;
+    }
+    
+    function getSmoothedPeriodStart() {
+      const cohort = getCurrentCohort();
+      if (state.smoothMode === 'average') {
+        return get3PeriodAverage(cohort.periodStart);
+      }
+      return cohort.periodStart;
+    }
+    
+    function hasNegativeValues() {
+      return state.selectedMetrics.some(m => {
+        const data = getRawDataForMetric(m);
+        return data.some(v => v !== null && v < 0);
+      });
+    }
+    
+    function checkBundleConflict() {
+      const hasTraditional = state.selectedMetrics.some(m => BUNDLE_TRADITIONAL.includes(m));
+      const hasPriority = state.selectedMetrics.some(m => BUNDLE_PRIORITY.includes(m));
+      return hasTraditional && hasPriority;
+    }
+    
+    function updateBundleWarning() {
+      const warning = document.getElementById('bundleWarning');
+      const hasConflict = checkBundleConflict();
+      
+      if (hasConflict) {
+        warning.classList.add('visible');
+        const traditionalSelected = state.selectedMetrics.filter(m => BUNDLE_TRADITIONAL.includes(m));
+        const prioritySelected = state.selectedMetrics.filter(m => BUNDLE_PRIORITY.includes(m));
+        
+        document.getElementById('bundleWarningText').textContent = 
+          `You've selected metrics from both expense views (${traditionalSelected.map(m => METRIC_CONFIG[m].label).join(', ')} + ${prioritySelected.map(m => METRIC_CONFIG[m].label).join(', ')}). These bundles slice the same expense pool differently.`;
+      } else {
+        warning.classList.remove('visible');
+      }
+    }
+    
+    function switchBundle() {
+      const traditionalSelected = state.selectedMetrics.filter(m => BUNDLE_TRADITIONAL.includes(m));
+      const prioritySelected = state.selectedMetrics.filter(m => BUNDLE_PRIORITY.includes(m));
+      
+      // Remove all bundle metrics, then add the opposite bundle
+      let newMetrics = state.selectedMetrics.filter(m => !BUNDLE_TRADITIONAL.includes(m) && !BUNDLE_PRIORITY.includes(m));
+      
+      if (traditionalSelected.length >= prioritySelected.length) {
+        // Switch to priority
+        newMetrics = [...newMetrics, ...BUNDLE_PRIORITY];
+      } else {
+        // Switch to traditional
+        newMetrics = [...newMetrics, ...BUNDLE_TRADITIONAL];
+      }
+      
+      state.selectedMetrics = newMetrics;
+      
+      // Update select element
+      const select = document.getElementById('metricSelect');
+      Array.from(select.options).forEach(opt => {
+        opt.selected = state.selectedMetrics.includes(opt.value);
+      });
+      
+      renderChart();
+    }
+    
+    function updateInfoCards() {
+      const cohort = getCurrentCohort();
+      const lastIdx = cohort.milestones.length - 1;
+      
+      document.getElementById('cardCohortSize').textContent = cohort.name === 'Broad' ? '~10' : 'Elite';
+      document.getElementById('cardRange').textContent = cohort.range;
+      document.getElementById('cardRangeSubtext').textContent = `${cohort.milestones.length} data points`;
+      document.getElementById('cardTime').textContent = `${cohort.periodStart[lastIdx].toFixed(0)} mo`;
+      
+      // Find breakeven
+      const ebitdaData = cohort.ebitda.dollars;
+      let breakevenIdx = ebitdaData.findIndex(v => v > 0);
+      document.getElementById('cardBreakeven').textContent = breakevenIdx >= 0 ? `~$${cohort.milestones[breakevenIdx]}M` : 'N/A';
+      
+      // Peak GM
+      const gmData = cohort.grossProfit.percent;
+      const peakGM = Math.max(...gmData);
+      const peakGMIdx = gmData.indexOf(peakGM);
+      document.getElementById('cardGM').textContent = `${peakGM.toFixed(1)}%`;
+      document.getElementById('cardGMSubtext').textContent = `At $${cohort.milestones[peakGMIdx]}M`;
+      
+      // Peak MER
+      const merData = cohort.mer.values;
+      const peakMER = Math.max(...merData);
+      const peakMERIdx = merData.indexOf(peakMER);
+      document.getElementById('cardMER').textContent = `${peakMER.toFixed(2)}x`;
+      document.getElementById('cardMERSubtext').textContent = `At $${cohort.milestones[peakMERIdx]}M`;
+      
+      // Update subtitle
+      document.getElementById('subtitleText').textContent = `${cohort.range} Milestone Performance Analysis`;
+      
+      // Update footer
+      document.getElementById('footerText').textContent = cohort.name === 'Broad' 
+        ? 'Broad cohort: ~10 companies, filtered for 3+ per milestone'
+        : 'Elite cohort: Top performers with complete $1M–$175M trajectory';
+    }
+    
+    function updateLogScaleButton() {
+      const logBtn = document.getElementById('logScaleBtn');
+      const logWarning = document.getElementById('logWarning');
+      const hasNegatives = hasNegativeValues();
+      
+      if (hasNegatives) {
+        logBtn.disabled = true;
+        logWarning.style.display = 'block';
+        if (state.yScale === 'log') {
+          state.yScale = 'linear';
+          document.querySelector('[data-scale="linear"]').classList.add('active');
+          logBtn.classList.remove('active');
+        }
+      } else {
+        logBtn.disabled = false;
+        logWarning.style.display = 'none';
+      }
+    }
+    
+    function updateSmoothInfo() {
+      const smoothInfo = document.getElementById('smoothInfo');
+      const cohort = getCurrentCohort();
+      const messages = {
+        raw: '',
+        fade: `Outliers faded at ${cohort.outlierIndices.map(i => cohort.milestoneLabels[i]).join(', ')}`,
+        average: 'All data smoothed with 3-period moving average'
+      };
+      smoothInfo.textContent = messages[state.smoothMode];
+    }
+
+    // ============================================================================
+    // INSIGHTS
+    // ============================================================================
+    function generateInsights() {
+      const cohort = getCurrentCohort();
+      const metrics = state.selectedMetrics;
+      const stats = [];
+      let insightText = '';
+      let insightIcon = '📊';
+      
+      const lastIdx = cohort.milestones.length - 1;
+      
+      if (state.smoothMode === 'average') {
+        insightText = '<strong>3-Period Average:</strong> All data smoothed to show underlying trends more clearly.';
+        insightIcon = '📈';
+      } else if (metrics.includes('ebitda')) {
+        const firstEbitda = cohort.ebitda.dollars[0];
+        const lastEbitda = cohort.ebitda.dollars[lastIdx];
+        stats.push({ label: 'EBITDA Journey', value: `$${(firstEbitda/1000).toFixed(1)}M → $${(lastEbitda/1000).toFixed(1)}M`, trend: '📈', positive: lastEbitda > 0 });
+        insightText = `EBITDA improves from <strong>$${(firstEbitda/1000).toFixed(1)}M</strong> at $1M to <strong>$${(lastEbitda/1000).toFixed(1)}M</strong> at $${cohort.milestones[lastIdx]}M. ${state.cohort === 'elite' ? 'Elite performers show stronger profitability at scale.' : ''}`;
+      } else if (metrics.includes('grossProfit')) {
+        const firstGM = cohort.grossProfit.percent[0];
+        const lastGM = cohort.grossProfit.percent[lastIdx];
+        stats.push({ label: 'Gross Margin', value: `${firstGM.toFixed(0)}% → ${lastGM.toFixed(0)}%`, trend: '📈', positive: true });
+        insightText = `Gross margin improves <strong>${(lastGM - firstGM).toFixed(0)}pp</strong> from $1M to $${cohort.milestones[lastIdx]}M. Scale drives supplier leverage and production efficiency.`;
+      } else if (metrics.some(m => ['mer', 'amer', 'pmer'].includes(m))) {
+        const peakMER = Math.max(...cohort.mer.values);
+        stats.push({ label: 'Peak MER', value: `${peakMER.toFixed(2)}x`, trend: '🎯', positive: true });
+        insightText = `Marketing efficiency peaks at <strong>${peakMER.toFixed(2)}x MER</strong>. ${state.cohort === 'elite' ? 'Elite cohort sustains higher MER through $100M+.' : ''}`;
+        insightIcon = '🎯';
+      } else {
+        insightText = `${state.cohort === 'elite' ? 'Elite' : 'Broad'} cohort reaches <strong>$${cohort.milestones[lastIdx]}M</strong> in ~${cohort.periodStart[lastIdx].toFixed(0)} months. Select specific metrics for detailed insights.`;
+      }
+      
+      return { text: insightText, icon: insightIcon, stats };
+    }
+    
+    function updateInsights() {
+      const { text, icon, stats } = generateInsights();
+      document.getElementById('annotationText').innerHTML = `<strong>Insight:</strong> ${text}`;
+      document.querySelector('#annotation .icon').textContent = icon;
+      
+      const statsContainer = document.getElementById('insightStats');
+      statsContainer.innerHTML = stats.slice(0, 4).map(stat => `
+        <div class="insight-stat">
+          <span class="trend">${stat.trend}</span>
+          <div class="stat-content">
+            <span class="stat-label">${stat.label}</span>
+            <span class="stat-value ${stat.positive ? 'positive' : ''}">${stat.value}</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // ============================================================================
+    // CHART
+    // ============================================================================
+    function getYAxisConfig() {
+      const isRatioOnly = state.selectedMetrics.every(m => METRIC_CONFIG[m].isRatio);
+      const hasNegatives = hasNegativeValues();
+      
+      let title = isRatioOnly ? 'Ratio (x)' : (state.displayMode === 'percent' ? '% of Net Revenue' : '$ (000s)');
+      
+      return {
+        type: (state.yScale === 'log' && !hasNegatives) ? 'logarithmic' : 'linear',
+        title: { display: true, text: title, font: { size: 12, weight: '600' }, color: '#666' },
+        grid: { color: '#eee' },
+        ticks: {
+          callback: function(value) {
+            if (isRatioOnly) return value.toFixed(1) + 'x';
+            if (state.displayMode === 'percent') return value.toFixed(0) + '%';
+            if (Math.abs(value) >= 1000) return '$' + (value / 1000).toFixed(0) + 'M';
+            return '$' + value.toFixed(0) + 'K';
+          }
+        }
+      };
+    }
+    
+    function getXAxisConfig() {
+      const cohort = getCurrentCohort();
+      if (state.xAxis === 'milestone') {
+        return {
+          type: 'category',
+          title: { display: true, text: 'Revenue Milestone', font: { size: 12, weight: '600' }, color: '#666' },
+          grid: { display: false }
+        };
+      } else {
+        const maxTime = Math.max(...cohort.periodStart) + 2;
+        return {
+          type: 'linear',
+          title: { display: true, text: 'Months Since First GL Transaction', font: { size: 12, weight: '600' }, color: '#666' },
+          grid: { color: '#eee' },
+          min: 10,
+          max: Math.ceil(maxTime / 5) * 5,
+          ticks: { stepSize: 5, callback: v => v + ' mo' }
+        };
+      }
+    }
+    
+    function buildDatasets() {
+      const cohort = getCurrentCohort();
+      const periodData = getSmoothedPeriodStart();
+      const datasets = [];
+      
+      state.selectedMetrics.forEach(metricKey => {
+        const config = METRIC_CONFIG[metricKey];
+        let rawData = getRawDataForMetric(metricKey);
+        if (!rawData.length) return;
+        
+        let yData = state.smoothMode === 'average' ? get3PeriodAverage(rawData) : rawData;
+        
+        let mainData = state.xAxis === 'time' 
+          ? periodData.map((month, i) => ({ x: month, y: yData[i] }))
+          : yData;
+        
+        const isFadeMode = state.smoothMode === 'fade';
+        
+        datasets.push({
+          label: config.label,
+          data: mainData,
+          borderColor: config.color,
+          backgroundColor: config.color + '20',
+          borderWidth: 3,
+          pointRadius: 4,
+          pointHoverRadius: 6,
+          pointBackgroundColor: ctx => (isFadeMode && cohort.outlierIndices.includes(ctx.dataIndex)) ? config.color + '40' : config.color,
+          pointBorderColor: ctx => (isFadeMode && cohort.outlierIndices.includes(ctx.dataIndex)) ? 'rgba(255,255,255,0.4)' : 'white',
+          pointBorderWidth: 2,
+          tension: 0.3,
+          fill: false,
+          segment: {
+            borderColor: ctx => {
+              if (isFadeMode && (cohort.outlierIndices.includes(ctx.p0DataIndex) || cohort.outlierIndices.includes(ctx.p1DataIndex))) {
+                return config.color + '50';
+              }
+              return config.color;
+            },
+            borderDash: ctx => {
+              if (isFadeMode && (cohort.outlierIndices.includes(ctx.p0DataIndex) || cohort.outlierIndices.includes(ctx.p1DataIndex))) {
+                return [6, 4];
+              }
+              return undefined;
+            }
+          }
+        });
+      });
+      
+      return datasets;
+    }
+    
+    function updateLegend() {
+      document.getElementById('customLegend').innerHTML = state.selectedMetrics.map(metricKey => {
+        const config = METRIC_CONFIG[metricKey];
+        return `<div class="legend-item"><div class="legend-color" style="background: ${config.color}"></div><span>${config.label}</span></div>`;
+      }).join('');
+    }
+    
+    function renderChart() {
+      const ctx = document.getElementById('trajectoryChart').getContext('2d');
+      const cohort = getCurrentCohort();
+      
+      if (chart) chart.destroy();
+      
+      updateLogScaleButton();
+      updateSmoothInfo();
+      updateInsights();
+      updateInfoCards();
+      updateBundleWarning();
+      
+      const chartType = state.xAxis === 'time' ? 'scatter' : 'line';
+      
+      chart = new Chart(ctx, {
+        type: chartType,
+        data: {
+          labels: state.xAxis === 'milestone' ? cohort.milestoneLabels : undefined,
+          datasets: buildDatasets()
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'nearest', intersect: false },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: 'white',
+              titleColor: '#333',
+              bodyColor: '#666',
+              borderColor: '#ddd',
+              borderWidth: 1,
+              padding: 12,
+              callbacks: {
+                title: function(context) {
+                  if (!context.length) return '';
+                  let idx = state.xAxis === 'time'
+                    ? getSmoothedPeriodStart().findIndex(m => Math.abs(m - context[0].parsed.x) < 0.5)
+                    : context[0].dataIndex;
+                  if (idx === -1) return '';
+                  return `${cohort.milestoneLabels[idx]} (${cohort.periodStart[idx]} mo)`;
+                },
+                label: function(context) {
+                  const metricKey = state.selectedMetrics[context.datasetIndex];
+                  const config = METRIC_CONFIG[metricKey];
+                  const value = state.xAxis === 'time' ? context.parsed.y : context.raw;
+                  if (config.isRatio) return `${config.label}: ${value.toFixed(2)}x`;
+                  if (state.displayMode === 'percent') return `${config.label}: ${value.toFixed(1)}%`;
+                  if (Math.abs(value) >= 1000) return `${config.label}: $${(value/1000).toFixed(1)}M`;
+                  return `${config.label}: $${value.toFixed(0)}K`;
+                }
+              }
+            }
+          },
+          scales: { x: getXAxisConfig(), y: getYAxisConfig() }
+        }
+      });
+      
+      if (chartType === 'scatter') {
+        chart.data.datasets.forEach(ds => { ds.showLine = true; });
+        chart.update();
+      }
+      
+      updateLegend();
+    }
+
+    // ============================================================================
+    // EVENTS
+    // ============================================================================
+    function initEventListeners() {
+      // Cohort toggle
+      document.querySelectorAll('.cohort-btn').forEach(btn => {
+        btn.addEventListener('click', e => {
+          document.querySelectorAll('.cohort-btn').forEach(b => b.classList.remove('active'));
+          e.currentTarget.classList.add('active');
+          state.cohort = e.currentTarget.dataset.cohort;
+          renderChart();
+        });
+      });
+      
+      // Metric select
+      document.getElementById('metricSelect').addEventListener('change', e => {
+        const selected = Array.from(e.target.selectedOptions).map(opt => opt.value);
+        if (selected.length > 0) {
+          state.selectedMetrics = selected;
+          renderChart();
+        }
+      });
+      
+      // Bundle fix button
+      document.getElementById('bundleFixBtn').addEventListener('click', switchBundle);
+      
+      // Toggle buttons
+      document.querySelectorAll('.toggle-group').forEach(group => {
+        group.querySelectorAll('.toggle-btn').forEach(btn => {
+          btn.addEventListener('click', e => {
+            if (e.target.disabled) return;
+            group.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+            e.target.classList.add('active');
+            
+            if (e.target.dataset.axis) state.xAxis = e.target.dataset.axis;
+            if (e.target.dataset.scale) state.yScale = e.target.dataset.scale;
+            if (e.target.dataset.mode) {
+              state.displayMode = e.target.dataset.mode;
+              if (state.selectedMetrics.every(m => METRIC_CONFIG[m].isRatio) && state.displayMode === 'percent') {
+                state.displayMode = 'dollars';
+                document.querySelector('[data-mode="dollars"]').classList.add('active');
+                document.querySelector('[data-mode="percent"]').classList.remove('active');
+              }
+            }
+            if (e.target.dataset.smooth) state.smoothMode = e.target.dataset.smooth;
+            
+            renderChart();
+          });
+        });
+      });
+    }
+
+    // ============================================================================
+    // INIT
+    // ============================================================================
+    document.addEventListener('DOMContentLoaded', () => {
+      initEventListeners();
+      renderChart();
+    });
+  </script>
+</body>
+</html>
